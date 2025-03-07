@@ -1,0 +1,13 @@
+#+TITLE: ansible-ubuntu
+
+#+begin_src bash
+ansible-playbook setup.yml --ask-become-pass
+#+end_src
+
+#+begin_src bash
+ansible-playbook setup.yml --ask-become-pass -e "skip_confirm=true"
+#+end_src
+
+#+begin_src bash
+ansible-playbook check_versions.yml
+#+end_src

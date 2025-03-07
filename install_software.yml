@@ -1,0 +1,26 @@
+---
+- name: Check {{ software.name }} version
+  command: "{{ software.cmd }}"
+  register: version_check
+  ignore_errors: yes
+
+- name: Ask user to install {{ software.name }} if needed
+  pause:
+    prompt: "{{ software.name }} is missing or outdated. Install? (yes/no)"
+  register: user_confirm
+  when: version_check.rc != 0 and not skip_confirm
+
+- name: Install {{ software.name }} if confirmed or skip_confirm is enabled
+  when: version_check.rc != 0 and (skip_confirm or user_confirm.user_input | default('yes') | lower == 'yes')
+  block:
+
+    - name: Add repository for {{ software.name }}
+      shell: "{{ software.repo_cmd }}"
+      when: software.repo_cmd != ""
+
+    - name: Install {{ software.name }}
+      apt:
+        name: "{{ software.package }}"
+        state: present
+        update_cache: yes
+      when: software.package != ""

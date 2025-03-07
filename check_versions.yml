@@ -1,0 +1,26 @@
+---
+- name: Check Installed Software Versions
+  hosts: localhost
+  become: no
+  vars_files:
+    - vars.yml
+
+  tasks:
+    - name: Check and Display Versions
+      command: "{{ item.cmd }}"
+      register: version_check
+      ignore_errors: yes
+      loop:
+        - { name: "Google Chrome", cmd: "google-chrome --version" }
+        - { name: "Node.js", cmd: "node -v" }
+        - { name: "Docker", cmd: "docker --version" }
+        - { name: "kubectl", cmd: "kubectl version --client --short" }
+        - { name: "Helm", cmd: "helm version --short" }
+        - { name: "Azure CLI", cmd: "az --version" }
+        - { name: "Kind", cmd: "kind version" }
+        - { name: "Python", cmd: "python3 --version" }
+
+    - name: Display version information
+      debug:
+        msg: "{{ item.item.name }} installed version: {{ item.stdout | default('Not Installed') }}"
+      loop: "{{ version_check.results }}"

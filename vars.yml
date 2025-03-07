@@ -1,0 +1,16 @@
+---
+force_update: false  # true にするとリポジトリとキーを強制的に再設定
+skip_confirm: false  # true にすると、すべてのインストール確認をスキップし、自動で進行
+
+# 各ソフトウェアのバージョン
+node_version: "18"
+docker_version: "5:25.0.3-1~ubuntu.22.04~jammy"
+kubectl_version: "1.29.0"
+helm_version: "v3.12.0"
+azure_cli_version: "2.55.0"
+kind_version: "v0.20.0"
+chrome_version: "stable"
+
+# ファイルパスの設定
+keyrings_dir: "/etc/apt/keyrings"
+sources_list_dir: "/etc/apt/sources.list.d"

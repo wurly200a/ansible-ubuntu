@@ -1,0 +1,42 @@
+---
+- name: Setup Ubuntu Environment
+  hosts: localhost
+  become: yes
+  vars_files:
+    - vars.yml
+
+  tasks:
+
+    - name: Install prerequisites
+      apt:
+        name:
+          - curl
+          - gnupg
+          - ca-certificates
+          - lsb-release
+          - software-properties-common
+        state: present
+        update_cache: yes
+
+    - name: Ensure directories exist
+      file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop:
+        - "{{ keyrings_dir }}"
+        - "{{ sources_list_dir }}"
+
+    - name: Install software
+      include_tasks: install_software.yml
+      loop:
+        - { name: "Google Chrome", cmd: "google-chrome --version", repo_cmd: "curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | sudo gpg --dearmor -o {{ keyrings_dir }}/google-chrome.gpg && echo 'deb [arch=amd64 signed-by={{ keyrings_dir }}/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main' | sudo tee {{ sources_list_dir }}/google-chrome.list", package: "google-chrome-stable" }
+        - { name: "Node.js", cmd: "node -v", repo_cmd: "curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | sudo gpg --dearmor -o {{ keyrings_dir }}/nodesource.gpg && echo 'deb [signed-by={{ keyrings_dir }}/nodesource.gpg] https://deb.nodesource.com/node_{{ node_version }}.x nodistro main' | sudo tee {{ sources_list_dir }}/nodesource.list", package: "nodejs" }
+        - { name: "Docker", cmd: "docker --version", repo_cmd: "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o {{ keyrings_dir }}/docker.gpg && echo 'deb [arch=$(dpkg --print-architecture) signed-by={{ keyrings_dir }}/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable' | sudo tee {{ sources_list_dir }}/docker.list", package: "docker-ce" }
+        - { name: "kubectl", cmd: "kubectl version --client --short", repo_cmd: "curl -fsSL https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo gpg --dearmor -o {{ keyrings_dir }}/cloud.google.gpg && echo 'deb [signed-by={{ keyrings_dir }}/cloud.google.gpg] https://apt.kubernetes.io/ kubernetes-xenial main' | sudo tee {{ sources_list_dir }}/kubernetes.list", package: "kubectl" }
+        - { name: "Helm", cmd: "helm version --short", repo_cmd: "curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee {{ keyrings_dir }}/helm.gpg && echo 'deb [signed-by={{ keyrings_dir }}/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main' | sudo tee {{ sources_list_dir }}/helm-stable-debian.list", package: "helm" }
+        - { name: "Azure CLI", cmd: "az --version", repo_cmd: "curl -sLS https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor | sudo tee {{ keyrings_dir }}/microsoft.gpg && echo 'deb [signed-by={{ keyrings_dir }}/microsoft.gpg] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main' | sudo tee {{ sources_list_dir }}/azure-cli.list", package: "azure-cli" }
+        - { name: "Kind", cmd: "kind version", repo_cmd: "curl -Lo ./kind https://kind.sigs.k8s.io/dl/{{ kind_version }}/kind-linux-amd64 && chmod +x ./kind && sudo mv ./kind /usr/local/bin/kind", package: "" }
+        - { name: "Python", cmd: "python3 --version", repo_cmd: "", package: "python3-dev python3-pip python3-venv" }
+      loop_control:
+        loop_var: software
