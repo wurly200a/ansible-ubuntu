@@ -6,21 +6,35 @@
     - vars.yml
 
   tasks:
-    - name: Check and Display Versions
+    - name: Run Version Commands
       command: "{{ item.cmd }}"
       register: version_check
       ignore_errors: yes
+      changed_when: false
       loop:
-        - { name: "Google Chrome", cmd: "google-chrome --version" }
-        - { name: "Node.js", cmd: "node -v" }
-        - { name: "Docker", cmd: "docker --version" }
-        - { name: "kubectl", cmd: "kubectl version --client --short" }
-        - { name: "Helm", cmd: "helm version --short" }
-        - { name: "Azure CLI", cmd: "az --version" }
-        - { name: "Kind", cmd: "kind version" }
-        - { name: "Python", cmd: "python3 --version" }
+        - { name: "Google Chrome", cmd: "google-chrome --version", expected: "{{ chrome_version }}" }
+        - { name: "Node.js", cmd: "node -v", expected: "v{{ node_version }}" }
+        - { name: "Docker", cmd: "docker --version", expected: "{{ docker_version }}" }
+        - { name: "kubectl", cmd: "kubectl version --client", expected: "{{ kubectl_version }}" }
+        - { name: "Helm", cmd: "helm version --short", expected: "{{ helm_version }}" }
+        - { name: "Azure CLI", cmd: "az --version", expected: "{{ azure_cli_version }}" }
+        - { name: "Kind", cmd: "kind version", expected: "{{ kind_version }}" }
+        - { name: "Python", cmd: "python3 --version", expected: "Python 3.x.x" }
 
-    - name: Display version information
-      debug:
-        msg: "{{ item.item.name }} installed version: {{ item.stdout | default('Not Installed') }}"
+    - name: Display Installed Versions (Icon-based Output)
+      ansible.builtin.debug:
+        msg: |
+          {{ item.item.name }}: {{ status }}
       loop: "{{ version_check.results }}"
+      vars:
+        installed_version: "{{ item.stdout | trim if item.rc == 0 else 'Not Installed' }}"
+        status: >-
+          {%- if item.rc != 0 -%}
+            ❌ Not Installed (Expected: {{ item.item.expected }})
+          {%- elif installed_version != item.item.expected -%}
+            ⚠️ Installed (Different: {{ installed_version }}, Expected: {{ item.item.expected }})
+          {%- else -%}
+            ✅ Installed ({{ installed_version }})
+          {%- endif -%}
+      loop_control:
+        label: "{{ item.item.name }}"
