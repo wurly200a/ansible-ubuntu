@@ -1,0 +1,328 @@
+---
+- name: Setup Ubuntu developer environment with version checks and confirmation prompts
+  hosts: localhost
+  connection: local
+  become: false
+  vars:
+    skip_confirmation: false
+    nvm_dir: "{{ ansible_env.HOME }}/.nvm"
+  tasks:
+    # Install common apt packages (no confirmation needed)
+    - name: Install common apt packages
+      become: true
+      apt:
+        name:
+          - curl
+          - wget
+          - apt-transport-https
+          - ca-certificates
+          - gnupg
+        state: present
+        update_cache: yes
+
+    ############################################
+    # Install Rust using rustup (user-level installation)
+    - name: Check current Rust version
+      command: "{{ ansible_env.HOME }}/.cargo/bin/rustc --version"
+      register: rust_version
+      failed_when: false
+      changed_when: false
+      become: false
+
+    - name: Confirm Rust installation/update
+      pause:
+        prompt: >
+          {% if rust_version.stdout %}
+          Rust is installed (version: {{ rust_version.stdout }}).
+          Do you want to update it? (Press Enter to continue or Ctrl+C to cancel)
+          {% else %}
+          Rust is not installed.
+          Do you want to install Rust? (Press Enter to continue or Ctrl+C to cancel)
+          {% endif %}
+      when: not skip_confirmation
+      register: rust_confirmation
+
+    - name: Install Rust via rustup interactively using expect
+      expect:
+        command: "script -q -c \"curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s --\" /dev/null"
+        responses:
+          ".*>": "1\n"
+      become: false
+      args:
+        creates: "{{ ansible_env.HOME }}/.cargo/bin/rustc"
+
+    ############################################
+    # Install Node.js using nvm (user-level installation)
+    - name: Check current Node.js version
+      command: "bash -c 'source {{ ansible_env.HOME }}/.nvm/nvm.sh && node --version'"
+      register: node_version
+      failed_when: false
+      changed_when: false
+      become: false
+
+    - name: Confirm Node.js installation/update via nvm
+      pause:
+        prompt: >
+          {% if node_version.stdout %}
+          Node.js is installed (version: {{ node_version.stdout }}).
+          Do you want to update it via nvm? (Press Enter to continue or Ctrl+C to cancel)
+          {% else %}
+          Node.js is not installed.
+          Do you want to install it via nvm? (Press Enter to continue or Ctrl+C to cancel)
+          {% endif %}
+      when: not skip_confirmation
+      register: node_confirmation
+
+    - name: Install NVM (Node Version Manager)
+      shell: "curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.1/install.sh | bash"
+      args:
+        creates: "{{ nvm_dir }}"
+      become: false
+
+    ############################################
+    # Install Docker via official repository
+    - name: Check current Docker version
+      command: "docker --version"
+      register: docker_version
+      failed_when: false
+      changed_when: false
+
+    - name: Confirm Docker installation/update
+      pause:
+        prompt: >
+          {% if docker_version.stdout %}
+          Docker is installed ({{ docker_version.stdout }}).
+          Do you want to update it? (Press Enter to continue or Ctrl+C to cancel)
+          {% else %}
+          Docker is not installed.
+          Do you want to install it? (Press Enter to continue or Ctrl+C to cancel)
+          {% endif %}
+      when: not skip_confirmation
+      register: docker_confirmation
+
+    - name: Add Docker GPG key
+      apt_key:
+        url: https://download.docker.com/linux/ubuntu/gpg
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://download.docker.com/linux/ubuntu {{ ansible_distribution_release }} stable"
+        state: present
+
+    - name: Install Docker packages
+      apt:
+        name:
+          - docker-ce
+          - docker-ce-cli
+          - containerd.io
+        state: present
+        update_cache: yes
+
+    - name: Ensure Docker service is running
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    ############################################
+    # Install kubectl via apt
+    - name: Check current kubectl version
+      command: "kubectl version --client --short"
+      register: kubectl_version
+      failed_when: false
+      changed_when: false
+
+    - name: Confirm kubectl installation/update
+      pause:
+        prompt: >
+          {% if kubectl_version.stdout %}
+          kubectl is installed ({{ kubectl_version.stdout }}).
+          Do you want to update it? (Press Enter to continue or Ctrl+C to cancel)
+          {% else %}
+          kubectl is not installed.
+          Do you want to install it? (Press Enter to continue or Ctrl+C to cancel)
+          {% endif %}
+      when: not skip_confirmation
+      register: kubectl_confirmation
+
+    - name: Install kubectl via apt
+      apt:
+        name: kubectl
+        state: present
+        update_cache: yes
+
+    ############################################
+    # Install Helm via official script
+    - name: Check current Helm version
+      command: "helm version --short"
+      register: helm_version
+      failed_when: false
+      changed_when: false
+
+    - name: Confirm Helm installation/update
+      pause:
+        prompt: >
+          {% if helm_version.stdout %}
+          Helm is installed ({{ helm_version.stdout }}).
+          Do you want to update it? (Press Enter to continue or Ctrl+C to cancel)
+          {% else %}
+          Helm is not installed.
+          Do you want to install it? (Press Enter to continue or Ctrl+C to cancel)
+          {% endif %}
+      when: not skip_confirmation
+      register: helm_confirmation
+
+    - name: Install Helm via official script
+      shell: "curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash"
+      args:
+        creates: "/usr/local/bin/helm"
+
+    ############################################
+    # Install Azure CLI
+    - name: Check current Azure CLI version
+      command: "az version"
+      register: az_version
+      failed_when: false
+      changed_when: false
+
+    - name: Confirm Azure CLI installation/update
+      pause:
+        prompt: >
+          {% if az_version.stdout %}
+          Azure CLI is installed ({{ az_version.stdout }}).
+          Do you want to update it? (Press Enter to continue or Ctrl+C to cancel)
+          {% else %}
+          Azure CLI is not installed.
+          Do you want to install it? (Press Enter to continue or Ctrl+C to cancel)
+          {% endif %}
+      when: not skip_confirmation
+      register: az_confirmation
+
+    - name: Add Microsoft signing key for Azure CLI
+      apt_key:
+        url: https://packages.microsoft.com/keys/microsoft.asc
+        state: present
+
+    - name: Add Azure CLI repository
+      apt_repository:
+        repo: "deb [arch=amd64] https://packages.microsoft.com/repos/azure-cli/ $(lsb_release -cs) main"
+        state: present
+
+    - name: Install Azure CLI
+      apt:
+        name: azure-cli
+        state: present
+        update_cache: yes
+
+    ############################################
+    # Install kind (Kubernetes in Docker) using official binary download
+    - name: Check current kind version
+      command: "kind --version"
+      register: kind_version
+      failed_when: false
+      changed_when: false
+
+    - name: Confirm kind installation/update
+      pause:
+        prompt: >
+          {% if kind_version.stdout %}
+          kind is installed ({{ kind_version.stdout }}).
+          Do you want to update it? (Press Enter to continue or Ctrl+C to cancel)
+          {% else %}
+          kind is not installed.
+          Do you want to install it? (Press Enter to continue or Ctrl+C to cancel)
+          {% endif %}
+      when: not skip_confirmation
+      register: kind_confirmation
+
+    - name: Install kind (Kubernetes in Docker)
+      shell: |
+        curl -Lo /tmp/kind https://kind.sigs.k8s.io/dl/v0.17.0/kind-linux-amd64
+        chmod +x /tmp/kind
+        mv /tmp/kind /usr/local/bin/kind
+      args:
+        creates: "/usr/local/bin/kind"
+
+    ############################################
+    # Install Google Chrome via official repository
+    - name: Check current Google Chrome version
+      command: "google-chrome --version"
+      register: chrome_version
+      failed_when: false
+      changed_when: false
+
+    - name: Confirm Google Chrome installation/update
+      pause:
+        prompt: >
+          {% if chrome_version.stdout %}
+          Google Chrome is installed ({{ chrome_version.stdout }}).
+          Do you want to update it? (Press Enter to continue or Ctrl+C to cancel)
+          {% else %}
+          Google Chrome is not installed.
+          Do you want to install it? (Press Enter to continue or Ctrl+C to cancel)
+          {% endif %}
+      when: not skip_confirmation
+      register: chrome_confirmation
+
+    - name: Add Google Chrome GPG key
+      apt_key:
+        url: https://dl.google.com/linux/linux_signing_key.pub
+        state: present
+
+    - name: Add Google Chrome repository
+      apt_repository:
+        repo: "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main"
+        state: present
+
+    - name: Install Google Chrome
+      apt:
+        name: google-chrome-stable
+        state: present
+        update_cache: yes
+
+    ############################################
+    # Install Go using the official tarball
+    - name: Check current Go version
+      command: "go version"
+      register: go_version
+      failed_when: false
+      changed_when: false
+
+    - name: Confirm Go installation/update
+      pause:
+        prompt: >
+          {% if go_version.stdout %}
+          Go is installed ({{ go_version.stdout }}).
+          Do you want to update it? (Press Enter to continue or Ctrl+C to cancel)
+          {% else %}
+          Go is not installed.
+          Do you want to install it? (Press Enter to continue or Ctrl+C to cancel)
+          {% endif %}
+      when: not skip_confirmation
+      register: go_confirmation
+
+    - name: Download Go tarball
+      get_url:
+        url: https://golang.org/dl/go1.20.6.linux-amd64.tar.gz
+        dest: /tmp/go.tar.gz
+        mode: '0644'
+      args:
+        creates: "/tmp/go.tar.gz"
+
+    - name: Extract Go tarball
+      unarchive:
+        src: /tmp/go.tar.gz
+        dest: /usr/local
+        remote_src: yes
+      args:
+        creates: "/usr/local/go/bin/go"
+
+  handlers:
+    # Update PATH for Go installation in the user profile
+    - name: Update PATH for Go installation
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/.profile"
+        line: 'export PATH=$PATH:/usr/local/go/bin'
+        create: yes
+      become: false

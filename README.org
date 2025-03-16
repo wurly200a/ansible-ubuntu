@@ -11,3 +11,7 @@ ansible-playbook setup.yml --ask-become-pass -e "skip_confirm=true"
 #+begin_src bash
 ansible-playbook check_versions.yml
 #+end_src
+
+#+begin_src bash
+ansible-playbook -i localhost, check_and_install.yml --connection=local --ask-become-pass -vvv
+#+end_src
