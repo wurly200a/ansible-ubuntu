@@ -3,6 +3,7 @@ force_update: false  # true にするとリポジトリとキーを強制的に�
 skip_confirm: false  # true にすると、すべてのインストール確認をスキップし、自動で進行
 
 # 各ソフトウェアのバージョン
+rust_version: "1.85.0"
 node_version: "18"
 docker_version: "5:25.0.3-1~ubuntu.22.04~jammy"
 kubectl_version: "1.29.0"

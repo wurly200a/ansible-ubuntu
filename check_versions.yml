@@ -12,6 +12,7 @@
       ignore_errors: yes
       changed_when: false
       loop:
+        - { name: "Rust", cmd: "rustc --version", expected: "Rust {{ rust_version }}" }
         - { name: "Google Chrome", cmd: "google-chrome --version", expected: "{{ chrome_version }}" }
         - { name: "Node.js", cmd: "node -v", expected: "v{{ node_version }}" }
         - { name: "Docker", cmd: "docker --version", expected: "{{ docker_version }}" }
